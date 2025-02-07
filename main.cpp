@@ -14,6 +14,19 @@
 #include <stb_image.h>
 #include <type_ptr.hpp>
 
+auto cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
+auto cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+auto cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
+
+float lastX = 0.0f, lastY = 0.0f;
+constexpr float sensitivity = 0.1f;
+
+float fov = 60.0f;
+
+float yaw = 0.0f, pitch = 0.0f;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 typedef struct VertexTexture
 {
@@ -105,18 +118,66 @@ void error_callback(int, const char* description)
 
 bool wireframe = false;
 
-static void key_callback(GLFWwindow* window, const int key, int, const int action, int)
-{
+static void processInput(GLFWwindow* window) {
+    const float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+}
+
+static void key_callback(GLFWwindow* window, const int key, int, const int action, int) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
-    if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+    if (key == GLFW_KEY_E && action == GLFW_PRESS) {
         if (wireframe)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         wireframe = !wireframe;
     }
+}
 
+bool firstMouse = true;
+
+static void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (firstMouse) // initially set to true
+    {
+        lastX = static_cast<float>(xpos);
+        lastY = static_cast<float>(ypos);
+        firstMouse = false;
+    }
+
+    float xoffset = static_cast<float>(xpos) - lastX;
+    float yoffset = lastY - static_cast<float>(ypos); // reversed since y-coordinates range from bottom to top
+    lastX = static_cast<float>(xpos);
+    lastY = static_cast<float>(ypos);
+
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw   += xoffset;
+    pitch += yoffset;
+    if(pitch > 89.0f)
+        pitch =  89.0f;
+    if(pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(direction);
+}
+
+static void mouseButtonCallback (GLFWwindow* window, int button, int action, int mods) {
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+        fov = fov == 45.0f ? 60.0f : 45.0f;
+    }
 }
 
 GLuint genTexture(const std::string &name) {
@@ -153,7 +214,17 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+
+    lastX = static_cast<float>(width) / 2.0f;
+    lastY = static_cast<float>(height) / 2.0f;
+
     glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwMakeContextCurrent(window);
     gladLoadGL(glfwGetProcAddress);
@@ -183,28 +254,21 @@ int main() {
     glEnableVertexAttribArray(vtex_location);
     glVertexAttribPointer(vtex_location, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTexture), reinterpret_cast<void *>(offsetof(VertexTexture, tex)));
 
-    auto view = glm::mat4(1.0f);
-    // note that we're translating the scene in the reverse direction of where we want to move
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-
     glEnable(GL_DEPTH_TEST);
-
-    float deltaTime = 0.0f;
-    float lastFrame = 0.0f;
 
     while (!glfwWindowShouldClose(window))
     {
+        processInput(window);
         const auto currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         std::cout << "fps:" << 1.0f / deltaTime << std::endl;
-        // glClearColor(1.0f - 2.0f * fabs( fmod(static_cast<float>( glfwGetTime() ), 1.f) - 0.5f ), 0.f, 1.0f - ( 1.0f - 2.0f * fabs( fmod(static_cast<float>( glfwGetTime() ), 1.f) - 0.5f ) ), 1.0f);
         glClearColor(0.13f, 0.9f, 0.85f, 1.f);
-        int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(width)/static_cast<float>(height), 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+
+        glm::mat4 projection = glm::perspective(glm::radians(fov), static_cast<float>(width)/static_cast<float>(height), 0.1f, 100.0f);
 
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

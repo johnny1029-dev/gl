@@ -17,24 +17,17 @@
 auto cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
 auto cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 auto cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
-
 float lastX = 0.0f, lastY = 0.0f;
 constexpr float sensitivity = 0.1f;
+float fov = 60.0f, yaw = 0.0f, pitch = 0.0f;
+float deltaTime = 0.0f, lastFrame = 0.0f;
 
-float fov = 60.0f;
-float yaw = 0.0f, pitch = 0.0f;
-
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
-
-typedef struct VertexTexture
-{
+typedef struct VertexTexture {
     vec3 pos;
     vec2 tex;
 } VertexTexture;
 
-typedef struct VertexColor
-{
+typedef struct VertexColor {
     vec3 pos;
     vec3 col;
 } VertexColor;

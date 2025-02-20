@@ -22,7 +22,6 @@ float lastX = 0.0f, lastY = 0.0f;
 constexpr float sensitivity = 0.1f;
 
 float fov = 60.0f;
-
 float yaw = 0.0f, pitch = 0.0f;
 
 float deltaTime = 0.0f;
@@ -40,16 +39,8 @@ typedef struct VertexColor
     vec3 col;
 } VertexColor;
 
-// static constexpr VertexTexture vertices[4] =
-// {
-//     { {  0.5f,  0.5f, 0.f },  {1.f, 1.f} },
-//     { {  0.5f, -0.5f, 0.f },  {1.f, 0.f} },
-//     { { -0.5f, -0.5f, 0.f },  {0.f, 0.f} },
-//     { { -0.5f,  0.5f, 0.f },  {0.f, 1.f} }
-// };
-
 static constexpr VertexTexture vert3DShit[] = {
-    { {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f} },
+{ {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f} },
 { {0.5f, -0.5f, -0.5f}, {1.0f, 0.0f} },
 { {0.5f, 0.5f, -0.5f}, {1.0f, 1.0f} },
 { {0.5f, 0.5f, -0.5f}, {1.0f, 1.0f} },
@@ -110,13 +101,7 @@ unsigned int indices[6] = {  // note that we start from 0!
     1, 2, 3
 };
 
-
-void error_callback(int, const char* description)
-{
-    fprintf(stderr, "Error: %s\n", description);
-}
-
-bool wireframe = false;
+void error_callback(int, const char* description) { fprintf(stderr, "Error: %s\n", description); }
 
 static void processInput(GLFWwindow* window) {
     const float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
@@ -130,23 +115,19 @@ static void processInput(GLFWwindow* window) {
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
 
+bool wireframe = false;
 static void key_callback(GLFWwindow* window, const int key, int, const int action, int) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     if (key == GLFW_KEY_E && action == GLFW_PRESS) {
-        if (wireframe)
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_FILL : GL_LINE);
         wireframe = !wireframe;
     }
 }
 
 bool firstMouse = true;
-
-static void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-    if (firstMouse) // initially set to true
-    {
+static void mouse_callback(GLFWwindow*, const double xpos, const double ypos) {
+    if (firstMouse) {
         lastX = static_cast<float>(xpos);
         lastY = static_cast<float>(ypos);
         firstMouse = false;
@@ -174,7 +155,7 @@ static void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     cameraFront = glm::normalize(direction);
 }
 
-static void mouseButtonCallback (GLFWwindow* window, int button, int action, int mods) {
+static void mouseButtonCallback (GLFWwindow* window, int, int, int) {
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
         fov = fov == 45.0f ? 60.0f : 45.0f;
     }
@@ -197,9 +178,7 @@ GLuint genTexture(const std::string &name) {
 }
 
 int main() {
-
     glfwSetErrorCallback(error_callback);
-
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
@@ -208,8 +187,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow *window = glfwCreateWindow(640, 640, "Hello World", nullptr, nullptr);
-    if (!window)
-    {
+    if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
@@ -223,9 +201,7 @@ int main() {
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
-
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
     glfwMakeContextCurrent(window);
     gladLoadGL(glfwGetProcAddress);
     glfwSwapInterval(1);
@@ -250,14 +226,12 @@ int main() {
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
     glEnableVertexAttribArray(vpos_location);
-    glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTexture), static_cast<void *>(nullptr));
+    glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTexture), nullptr);
     glEnableVertexAttribArray(vtex_location);
-    glVertexAttribPointer(vtex_location, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTexture), reinterpret_cast<void *>(offsetof(VertexTexture, tex)));
+    glVertexAttribPointer(vtex_location, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTexture), (void *)offsetof(VertexTexture, tex));
 
     glEnable(GL_DEPTH_TEST);
-
-    while (!glfwWindowShouldClose(window))
-    {
+    while (!glfwWindowShouldClose(window)) {
         processInput(window);
         const auto currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
@@ -267,7 +241,6 @@ int main() {
         glfwGetFramebufferSize(window, &width, &height);
 
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
         glm::mat4 projection = glm::perspective(glm::radians(fov), static_cast<float>(width)/static_cast<float>(height), 0.1f, 100.0f);
 
         glViewport(0, 0, width, height);
@@ -290,7 +263,6 @@ int main() {
     }
 
     glfwDestroyWindow(window);
-
     glfwTerminate();
     exit(EXIT_SUCCESS);
 }
